@@ -1,4 +1,5 @@
 "use client";
+import { getDepthStreamUrl } from "@/api";
 import { useCallback, useEffect, useRef, useState } from "react";
 import useSWRSubscription from "swr/subscription";
 
@@ -125,15 +126,9 @@ export const usePartialDepth = (symbol: string, limit = 10) => {
   };
 };
 
-export const Orderbook = ({
-  symbol,
-  limit = 10,
-}: {
-  symbol: string;
-  limit?: number;
-}) => {
-  const { data, error } = useSWRSubscription<Depth, Event, string>(
-    `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@depth${limit}`,
+export const useDepthStream = (symbol: string, limit: number) =>
+  useSWRSubscription<Depth, Event, string>(
+    getDepthStreamUrl(symbol, limit),
     (key, { next }) => {
       const socket = new WebSocket(key);
       socket.addEventListener("message", ({ data }) =>
@@ -143,6 +138,15 @@ export const Orderbook = ({
       return () => socket.close();
     }
   );
+
+export const Orderbook = ({
+  symbol,
+  limit = 10,
+}: {
+  symbol: string;
+  limit?: number;
+}) => {
+  const { data, error } = useDepthStream(symbol, limit);
   if (error) return <div>failed to load</div>;
   if (!data) return <div>loading...</div>;
   return (

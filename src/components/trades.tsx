@@ -1,4 +1,6 @@
 "use client";
+import { getTradesStreamUrl, getTradesUrl } from "@/api";
+import { fetcher } from "@/utils";
 import useSWRSubscription from "swr/subscription";
 
 export type Trade = {
@@ -33,30 +35,11 @@ export const mapTradeStream = (data: TradeStream): Trade => ({
   isBestMatch: data.M,
 });
 
-const fetcher = <T,>(url: string) =>
-  fetch(url)
-    .then((r) => r.json())
-    .then((data: T) => data);
-
-export const Trades = ({
-  symbol,
-  limit = 10,
-}: {
-  symbol: string;
-  limit?: number;
-}) => {
-  /*
-  const { data, error } = useSWR<Trade[]>(
-    `https://api.binance.com/api/v3/trades?symbol=${symbol.toUpperCase()}&limit=10`,
-    fetcher
-  );
-  */
-  const { data, error } = useSWRSubscription<Trade[], Event, string>(
-    `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@trade`,
+export const useTradeStream = (symbol: string, limit: number) =>
+  useSWRSubscription<Trade[], Event, string>(
+    getTradesStreamUrl(symbol),
     (key, { next }) => {
-      fetcher<Trade[]>(
-        `https://api.binance.com/api/v3/trades?symbol=${symbol.toUpperCase()}&limit=${limit}`
-      ).then((data) =>
+      fetcher<Trade[]>(getTradesUrl(symbol, limit)).then((data) =>
         next(null, (prev) =>
           prev
             ? Array.from(
@@ -82,6 +65,15 @@ export const Trades = ({
       return () => socket.close();
     }
   );
+
+export const Trades = ({
+  symbol,
+  limit = 10,
+}: {
+  symbol: string;
+  limit?: number;
+}) => {
+  const { data, error } = useTradeStream(symbol, limit);
 
   if (error) return <div>failed to load</div>;
   if (!data) return <div>loading...</div>;
