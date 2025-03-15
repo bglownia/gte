@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import useSWRSubscription from "swr/subscription";
 
 type Depth = {
   lastUpdateId: number;
@@ -39,7 +40,7 @@ const updateDepth = (data: Depth, delta: DepthStream): Depth => {
   };
 };
 
-const useDepth = (symbol: string) => {
+export const useDepth = (symbol: string) => {
   const wsMessageBuffer = useRef<DepthStream[]>([]);
   const isFetching = useRef(true);
   const isSubscribed = useRef(false);
@@ -92,7 +93,7 @@ const useDepth = (symbol: string) => {
   return { data, isLoading, isError };
 };
 
-const usePartialDepth = (symbol: string, limit = 10) => {
+export const usePartialDepth = (symbol: string, limit = 10) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [data, setData] = useState<Depth | null>(null);
@@ -124,16 +125,26 @@ const usePartialDepth = (symbol: string, limit = 10) => {
   };
 };
 
-export const Orderbook = ({ symbol }: { symbol: string }) => {
-  const { data, isError, isLoading } = usePartialDepth(symbol);
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-  if (isError) {
-    return <div>Error</div>;
-  }
-
+export const Orderbook = ({
+  symbol,
+  limit = 10,
+}: {
+  symbol: string;
+  limit?: number;
+}) => {
+  const { data, error } = useSWRSubscription<Depth, Event, string>(
+    `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@depth${limit}`,
+    (key, { next }) => {
+      const socket = new WebSocket(key);
+      socket.addEventListener("message", ({ data }) =>
+        next(null, JSON.parse(data) as Depth)
+      );
+      socket.addEventListener("error", (event) => next(event));
+      return () => socket.close();
+    }
+  );
+  if (error) return <div>failed to load</div>;
+  if (!data) return <div>loading...</div>;
   return (
     <div>
       <h1>Orderbook</h1>
