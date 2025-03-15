@@ -64,7 +64,8 @@ const useDepth = (symbol: string) => {
           );
           wsMessageBuffer.current = [];
           setIsLoading(false);
-        }),
+        })
+        .catch(() => setIsError(true)),
     [symbol]
   );
 
@@ -84,14 +85,47 @@ const useDepth = (symbol: string) => {
         setData((prev) => prev && updateDepth(prev, data));
       }
     };
+    ws.onerror = () => setIsError(true);
     ws.onopen = () => {};
     return () => ws.close();
   }, [symbol, fetchDepth]);
   return { data, isLoading, isError };
 };
 
+const usePartialDepth = (symbol: string, limit = 10) => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+  const [data, setData] = useState<Depth | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    setIsLoading(true);
+    setIsError(false);
+    const ws = new WebSocket(
+      `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@depth${limit}`
+    );
+    ws.onmessage = (event) => {
+      setData(JSON.parse(event.data) as Depth);
+      setIsLoading(false);
+    };
+    ws.onopen = () => {
+      setIsLoading(false);
+    };
+    ws.onerror = () => {
+      setIsLoading(false);
+      setIsError(true);
+    };
+    return () => ws.close();
+  }, [symbol, limit, attempt]);
+  return {
+    data,
+    isLoading,
+    isError,
+    retry: useCallback(() => setAttempt((prev) => prev + 1), []),
+  };
+};
+
 export const Orderbook = ({ symbol }: { symbol: string }) => {
-  const { data, isError, isLoading } = useDepth(symbol);
+  const { data, isError, isLoading } = usePartialDepth(symbol);
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -104,13 +138,18 @@ export const Orderbook = ({ symbol }: { symbol: string }) => {
     <div>
       <h1>Orderbook</h1>
       <div>
+        {data?.asks.toReversed().map(([price, qty]) => (
+          <div key={price}>
+            <span>{price}</span> | <span>{qty}</span>
+          </div>
+        ))}
+        -----------------
         {data?.bids.map(([price, qty]) => (
           <div key={price}>
             <span>{price}</span> | <span>{qty}</span>
           </div>
         ))}
       </div>
-      <pre>{JSON.stringify({ isLoading, data, isError })}</pre>
     </div>
   );
 };
