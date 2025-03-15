@@ -5,11 +5,11 @@ import { Trades } from "@/components/trades";
 import { fetcher } from "@/utils";
 import { SWRConfig } from "swr";
 
-export const MarketPage = async ({
+export default async function MarketPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
-}) => {
+}) {
   const { slug } = await params;
   const url = getTickerPriceUrl(slug);
   const data = await fetcher(url);
@@ -20,6 +20,4 @@ export const MarketPage = async ({
       <Trades symbol={slug} />
     </SWRConfig>
   );
-};
-
-export default MarketPage;
+}
