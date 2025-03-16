@@ -11,6 +11,7 @@ export type Trade = {
   time: number;
   isBuyerMaker: boolean;
   isBestMatch: boolean;
+  direction?: PriceDirection;
 };
 
 export type TradeStream = {
@@ -25,38 +26,71 @@ export type TradeStream = {
   M: boolean; // Ignore
 };
 
-export const mapTradeStream = (data: TradeStream): Trade => ({
-  id: data.t,
-  price: data.p,
-  qty: data.q,
-  quoteQty: (parseFloat(data.p) * parseFloat(data.q)).toString(),
-  time: data.T,
-  isBuyerMaker: data.m,
-  isBestMatch: data.M,
+type PriceDirection = "up" | "down";
+
+export const mapTradeStream = (data: TradeStream, prev?: Trade): Trade =>
+  mapTrade(
+    {
+      id: data.t,
+      price: data.p,
+      qty: data.q,
+      quoteQty: (parseFloat(data.p) * parseFloat(data.q)).toString(),
+      time: data.T,
+      isBuyerMaker: data.m,
+      isBestMatch: data.M,
+    },
+    prev
+  );
+
+export const mapTrade = (data: Trade, prev?: Trade) => ({
+  ...data,
+  direction: prev
+    ? data.price === prev.price
+      ? prev.direction
+      : parseFloat(data.price) > parseFloat(prev.price)
+      ? "up"
+      : "down"
+    : undefined,
 });
+
+const mapTrades = (data: Trade[]) => {
+  let prev: Trade | undefined = undefined;
+  return data
+    .toReversed()
+    .map((trade) => {
+      const mapped = mapTrade(trade, prev);
+      prev = mapped;
+      return mapped;
+    })
+    .toReversed();
+};
+
+const mergeTrades = (...trades: Trade[][]) =>
+  Array.from(
+    new Map(
+      trades
+        .slice(1)
+        .reduce((a, trades) => [...a, ...trades], trades[0])
+        .map((trade) => [trade.id, trade])
+    ).values()
+  ).toSorted((a, b) => b.id - a.id);
 
 export const useTradeStream = (symbol: string, limit: number) =>
   useSWRSubscription<Trade[], Event, string>(
     getTradesStreamUrl(symbol),
     (key, { next }) => {
-      fetcher<Trade[]>(getTradesUrl(symbol, limit)).then((data) =>
+      fetcher<Trade[]>(getTradesUrl(symbol, limit + 1)).then((data) =>
         next(null, (prev) =>
-          prev
-            ? Array.from(
-                new Map(
-                  [...prev, ...data].map((trade) => [trade.id, trade])
-                ).values()
-              )
-                .toSorted((a, b) => b.id - a.id)
-                .slice(0, limit)
-            : data.toReversed()
+          mapTrades(
+            prev ? mergeTrades(prev, data).slice(0, limit) : data.toReversed()
+          )
         )
       );
       const socket = new WebSocket(key);
       socket.addEventListener("message", ({ data }) =>
         next(null, (prev) =>
           [
-            mapTradeStream(JSON.parse(data) as TradeStream),
+            mapTradeStream(JSON.parse(data) as TradeStream, prev?.[0]),
             ...(prev || []),
           ].slice(0, limit)
         )
@@ -66,6 +100,24 @@ export const useTradeStream = (symbol: string, limit: number) =>
     }
   );
 
+const dateTimeFormat = new Intl.DateTimeFormat("en-US", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit", // Add seconds
+  hour12: false, // Use 24-hour format
+});
+
+const TradeRow = ({ trade }: { trade: Trade }) => (
+  <div className="grid grid-cols-3 p-0.5 mb-0.5">
+    <span
+      className={trade.direction === "up" ? "text-green-500" : "text-red-500"}
+    >
+      {trade.price}
+    </span>
+    <span className="text-center">{trade.qty}</span>
+    <span className="text-right">{dateTimeFormat.format(trade.time)}</span>
+  </div>
+);
 export const Trades = ({
   symbol,
   limit = 10,
@@ -74,21 +126,18 @@ export const Trades = ({
   limit?: number;
 }) => {
   const { data, error } = useTradeStream(symbol, limit);
-
-  if (error) return <div>failed to load</div>;
-  if (!data) return <div>loading...</div>;
-
   return (
-    <div>
+    <div className="w-2xs">
       <h1>Trades</h1>
-      <div>
-        {data?.map((trade) => (
-          <div key={trade.id}>
-            <span>{trade.id}</span> - <span>{trade.price}</span> |{" "}
-            <span>{trade.qty}</span>
-          </div>
-        ))}
-      </div>
+      {error && <div>failed to load</div>}
+      {!error && !data && <div>loading...</div>}
+      {!error && data && (
+        <div className="text-xs">
+          {data?.map((trade) => (
+            <TradeRow trade={trade} key={trade.id} />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

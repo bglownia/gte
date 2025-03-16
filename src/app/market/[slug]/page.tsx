@@ -14,10 +14,14 @@ export default async function MarketPage({
   const url = getTickerPriceUrl(slug);
   const data = await fetcher(url);
   return (
-    <SWRConfig value={{ fallback: { [url]: data } }}>
-      <MarketInfo symbol={slug} />
-      <Orderbook symbol={slug} />
-      <Trades symbol={slug} />
-    </SWRConfig>
+    <main className="p-4">
+      <SWRConfig value={{ fallback: { [url]: data } }}>
+        <MarketInfo symbol={slug} />
+        <div className="flex gap-4">
+          <Orderbook symbol={slug} />
+          <Trades symbol={slug} limit={21} />
+        </div>
+      </SWRConfig>
+    </main>
   );
 }
