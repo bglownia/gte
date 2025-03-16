@@ -101,7 +101,7 @@ export const Orderbook = ({
 }) => {
   const { data, error } = useDepthStream(symbol, limit);
   return (
-    <div className="w-2xs">
+    <>
       <h2>Order Book</h2>
       {error && <div>failed to load</div>}
       {!error && !data && <div>loading...</div>}
@@ -132,6 +132,6 @@ export const Orderbook = ({
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 };

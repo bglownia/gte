@@ -127,7 +127,7 @@ export const Trades = ({
 }) => {
   const { data, error } = useTradeStream(symbol, limit);
   return (
-    <div className="w-2xs">
+    <>
       <h2>Trades</h2>
       {error && <div>failed to load</div>}
       {!error && !data && <div>loading...</div>}
@@ -143,6 +143,6 @@ export const Trades = ({
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 };

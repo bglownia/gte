@@ -17,9 +17,13 @@ export default async function MarketPage({
     <main className="p-4">
       <SWRConfig value={{ fallback: { [url]: data } }}>
         <MarketInfo symbol={slug} />
-        <div className="flex gap-4">
-          <Orderbook symbol={slug} />
-          <Trades symbol={slug} limit={21} />
+        <div className="flex flex-col gap-4 md:flex-row">
+          <div className="md:w-2xs">
+            <Orderbook symbol={slug} />
+          </div>
+          <div className="md:w-2xs">
+            <Trades symbol={slug} limit={21} />
+          </div>
         </div>
       </SWRConfig>
     </main>
