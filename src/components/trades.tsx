@@ -128,11 +128,16 @@ export const Trades = ({
   const { data, error } = useTradeStream(symbol, limit);
   return (
     <div className="w-2xs">
-      <h1>Trades</h1>
+      <h2>Trades</h2>
       {error && <div>failed to load</div>}
       {!error && !data && <div>loading...</div>}
       {!error && data && (
         <div className="text-xs">
+          <div className="grid grid-cols-3 p-0.5 mb-1">
+            <span>Price</span>
+            <span className="text-right">Size</span>
+            <span className="text-right">Time</span>
+          </div>
           {data?.map((trade) => (
             <TradeRow trade={trade} key={trade.id} />
           ))}

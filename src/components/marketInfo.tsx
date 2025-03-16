@@ -2,6 +2,7 @@
 
 import { getTickerPriceUrl } from "@/api";
 import { fetcher } from "@/utils";
+
 import useSWR from "swr";
 export const MarketInfo = ({ symbol }: { symbol: string }) => {
   const { data, error } = useSWR<{ symbol: string; price: string }>(
@@ -13,7 +14,7 @@ export const MarketInfo = ({ symbol }: { symbol: string }) => {
   if (!data) return <div>loading...</div>;
 
   return (
-    <h1>
+    <h1 className="font-bold mb-2">
       {data.symbol} - {data.price}
     </h1>
   );

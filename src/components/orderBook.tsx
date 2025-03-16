@@ -1,6 +1,5 @@
 "use client";
 import { getDepthStreamUrl } from "@/api";
-import { useCallback, useEffect, useRef, useState } from "react";
 import useSWRSubscription from "swr/subscription";
 
 type Depth = {
@@ -14,8 +13,8 @@ export const mapDepthToOrderbookRows = (
 ) => {
   let cumulativeQty = 0;
   return rows.map(([price, qty]) => ({
-    price: Number(price),
-    qty: Number(qty),
+    price,
+    qty,
     cumulativeQty: (cumulativeQty += Number(qty)),
   }));
 };
@@ -57,15 +56,15 @@ const OrderbookRow = ({
   cumulativeQty,
   isAsk,
 }: {
-  price: number;
-  qty: number;
+  price: string;
+  qty: string;
   maxCumulativeQty: number;
   cumulativeQty: number;
   isAsk?: boolean;
 }) => (
   <div className="relative mb-0.5">
     <div className="grid grid-cols-2 p-0.5">
-      <span className="text-green">{price}</span>
+      <span className={isAsk ? "text-red-500" : "text-green-500"}>{price}</span>
       <span className="text-right">{qty}</span>
     </div>
     <div
@@ -84,7 +83,7 @@ const OrderbookMid = ({
   spread: number;
   spreadPercentage: number;
 }) => (
-  <div className="mb-0.5 bg-gray-500">
+  <div className="mb-0.5 bg-gray-500/20">
     <div className="grid grid-cols-3 p-0.5 text-center">
       <span>Spread</span>
       <span>{spread.toFixed(6)}</span>
@@ -103,11 +102,15 @@ export const Orderbook = ({
   const { data, error } = useDepthStream(symbol, limit);
   return (
     <div className="w-2xs">
-      <h1>Orderbook</h1>
+      <h2>Order Book</h2>
       {error && <div>failed to load</div>}
       {!error && !data && <div>loading...</div>}
       {!error && data && (
         <div className="text-xs">
+          <div className="grid grid-cols-2 p-0.5 mb-1">
+            <span>Price</span>
+            <span className="text-right">Size</span>
+          </div>
           {data.asks.map((props) => (
             <OrderbookRow
               {...props}
